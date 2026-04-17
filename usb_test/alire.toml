@@ -12,4 +12,4 @@ tags = []
 executables = ["usb_test"]
 
 [[depends-on]]
-pico_bsp = "2.0.0"
+pico_bsp = "^2.2.0"
