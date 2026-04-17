@@ -1,0 +1,15 @@
+name = "hello_pico"
+description = ""
+version = "0.1.0-dev"
+
+authors = ["Simon Kraemer"]
+maintainers = ["Simon Kraemer <wisniewski1@gmail.com>"]
+maintainers-logins = ["Vrumugun"]
+licenses = "MIT OR Apache-2.0 WITH LLVM-exception"
+website = ""
+tags = []
+
+executables = ["hello_pico"]
+
+[[depends-on]]
+pico_bsp = "^2.2.0"

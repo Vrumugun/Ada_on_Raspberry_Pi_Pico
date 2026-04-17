@@ -1,0 +1,29 @@
+with "config/usb_test_config.gpr";
+with "pico_bsp.gpr";
+
+project Usb_Test is
+   for Target use "arm-eabi";
+   for Runtime ("Ada") use "light-cortex-m0p";
+   package Linker is
+        for Switches ("Ada") use Pico_BSP.Linker_Switches;
+    end Linker;
+
+   for Source_Dirs use ("src/", "config/");
+   for Object_Dir use "obj/" & Usb_Test_Config.Build_Profile;
+   for Create_Missing_Dirs use "True";
+   for Exec_Dir use "bin";
+   for Main use ("usb_test.adb");
+
+   package Compiler is
+      for Default_Switches ("Ada") use Usb_Test_Config.Ada_Compiler_Switches;
+   end Compiler;
+
+   package Binder is
+      for Switches ("Ada") use ("-Es"); --  Symbolic traceback
+   end Binder;
+
+   package Install is
+      for Artifacts (".") use ("share");
+   end Install;
+
+end Usb_Test;
