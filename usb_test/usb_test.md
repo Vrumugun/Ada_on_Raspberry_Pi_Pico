@@ -17,8 +17,8 @@ alr with pico_bsp
 
 # Program
 
-- ../picotool/picotool.exe uf2 convert bin/usb_test2 -t elf bin/usb_test2.uf2
-- ../picotool/picotool.exe load bin/usb_test2.uf2
+- ../picotool/picotool.exe uf2 convert bin/usb_test -t elf bin/usb_test.uf2
+- ../picotool/picotool.exe load bin/usb_test.uf2
 
 # Debug
 

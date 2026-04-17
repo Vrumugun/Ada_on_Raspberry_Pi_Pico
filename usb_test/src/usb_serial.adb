@@ -1,40 +1,13 @@
-with System;
-
-with Atomic;
-with BBqueue;
-with BBqueue.Buffers;
-with HAL; use HAL;
-
 with RP.Device;
-
-with USB; use USB;
-with USB.Device;
-with USB.HAL.Device;
 with USB.Utils;
 
 package body USB_Serial is
 
+   use HAL;
+   use USB;
+
    use type System.Address;
    use type BBqueue.Result_Kind;
-
-   Max_Packet_Size : constant Packet_Size := 64;
-   TX_Buffer_Size  : constant BBqueue.Count := 256;
-   RX_Buffer_Size  : constant BBqueue.Count := 256;
-
-   type CDC_Line_Coding is record
-      Bitrate   : UInt32;
-      Stop_Bit  : UInt8;
-      Parity    : UInt8;
-      Data_Bits : UInt8;
-   end record
-     with Pack, Size => 56;
-
-   type CDC_Line_Control_State is record
-      DTE_Is_Present                : Boolean;
-      Half_Duplex_Carrier_Control   : Boolean;
-      Reserved                      : UInt14;
-   end record
-     with Pack, Size => 16;
 
    type Class_Request_Type is
      (Set_Line_Coding, Get_Line_Coding, Set_Control_Line_State, Send_Break);
@@ -43,89 +16,6 @@ package body USB_Serial is
       Get_Line_Coding        => 16#21#,
       Set_Control_Line_State => 16#22#,
       Send_Break             => 16#23#);
-
-   type Custom_Serial_Class is limited
-     new USB.Device.USB_Device_Class with
-   record
-      Interface_Index : Interface_Id := 0;
-      Int_EP          : EP_Id := 0;
-      Bulk_EP         : EP_Id := 0;
-      Iface_Str       : String_Id := Invalid_String_Id;
-
-      Int_Buf      : System.Address := System.Null_Address;
-      Bulk_Out_Buf : System.Address := System.Null_Address;
-      Bulk_In_Buf  : System.Address := System.Null_Address;
-
-      TX_Queue : BBqueue.Buffers.Buffer (TX_Buffer_Size);
-      RX_Queue : BBqueue.Buffers.Buffer (RX_Buffer_Size);
-
-      TX_In_Progress : aliased Atomic.Flag := Atomic.Init (False);
-
-      Coding : CDC_Line_Coding :=
-        (Bitrate   => 115_200,
-         Stop_Bit  => 0,
-         Parity    => 0,
-         Data_Bits => 8);
-      State : CDC_Line_Control_State :=
-        (DTE_Is_Present              => False,
-         Half_Duplex_Carrier_Control => False,
-         Reserved                    => 0);
-   end record;
-
-   overriding
-   function Initialize
-     (This                 : in out Custom_Serial_Class;
-      Dev                  : in out USB.Device.USB_Device_Stack'Class;
-      Base_Interface_Index :        Interface_Id)
-      return USB.Device.Init_Result;
-
-   overriding
-   procedure Get_Class_Info
-     (This                     : in out Custom_Serial_Class;
-      Number_Of_Interfaces     :    out Interface_Id;
-      Config_Descriptor_Length :    out Natural);
-
-   overriding
-   procedure Fill_Config_Descriptor
-     (This : in out Custom_Serial_Class;
-      Data :    out UInt8_Array);
-
-   overriding
-   function Configure
-     (This  : in out Custom_Serial_Class;
-      UDC   : in out USB.HAL.Device.USB_Device_Controller'Class;
-      Index : UInt16)
-      return Setup_Request_Answer;
-
-   overriding
-   function Setup_Read_Request
-     (This  : in out Custom_Serial_Class;
-      Req   : Setup_Data;
-      Buf   : out System.Address;
-      Len   : out Buffer_Len)
-      return Setup_Request_Answer;
-
-   overriding
-   function Setup_Write_Request
-     (This  : in out Custom_Serial_Class;
-      Req   : Setup_Data;
-      Data  : UInt8_Array)
-      return Setup_Request_Answer;
-
-   overriding
-   procedure Transfer_Complete
-     (This : in out Custom_Serial_Class;
-      UDC  : in out USB.HAL.Device.USB_Device_Controller'Class;
-      EP   :        EP_Addr;
-      CNT  :        Packet_Size);
-
-   procedure Setup_RX
-     (This : in out Custom_Serial_Class;
-      UDC  : in out USB.HAL.Device.USB_Device_Controller'Class);
-
-   procedure Setup_TX
-     (This : in out Custom_Serial_Class;
-      UDC  : in out USB.HAL.Device.USB_Device_Controller'Class);
 
    USB_Stack  : USB.Device.USB_Device_Stack (Max_Classes => 1);
    USB_Class  : aliased Custom_Serial_Class;
@@ -143,8 +33,8 @@ package body USB_Serial is
          return USB.Device.Not_Enough_EPs;
       end if;
 
-         This.Int_Buf :=
-            Dev.Request_Buffer ((This.Int_EP, EP_In), Max_Packet_Size);
+      This.Int_Buf :=
+        Dev.Request_Buffer ((This.Int_EP, EP_In), Max_Packet_Size);
       if This.Int_Buf = System.Null_Address then
          return USB.Device.Not_Enough_EP_Buffer;
       end if;
@@ -153,22 +43,22 @@ package body USB_Serial is
          return USB.Device.Not_Enough_EPs;
       end if;
 
-         This.Bulk_Out_Buf :=
-            Dev.Request_Buffer ((This.Bulk_EP, EP_Out), Max_Packet_Size);
+      This.Bulk_Out_Buf :=
+        Dev.Request_Buffer ((This.Bulk_EP, EP_Out), Max_Packet_Size);
       if This.Bulk_Out_Buf = System.Null_Address then
          return USB.Device.Not_Enough_EP_Buffer;
       end if;
 
-         This.Bulk_In_Buf :=
-            Dev.Request_Buffer ((This.Bulk_EP, EP_In), Max_Packet_Size);
+      This.Bulk_In_Buf :=
+        Dev.Request_Buffer ((This.Bulk_EP, EP_In), Max_Packet_Size);
       if This.Bulk_In_Buf = System.Null_Address then
          return USB.Device.Not_Enough_EP_Buffer;
       end if;
 
       This.Interface_Index := Base_Interface_Index;
-         This.Iface_Str :=
-            USB.Device.Register_String
-               (Dev, USB.To_USB_String ("Custom CDC ACM"));
+      This.Iface_Str :=
+        USB.Device.Register_String
+          (Dev, USB.To_USB_String ("Custom CDC ACM"));
       return USB.Device.Ok;
    end Initialize;
 
@@ -345,9 +235,9 @@ package body USB_Serial is
                   return Not_Supported;
                end if;
             when Set_Control_Line_State'Enum_Rep =>
-                      This.State.DTE_Is_Present := (Req.Value and 1) /= 0;
-                      This.State.Half_Duplex_Carrier_Control :=
-                         (Req.Value and 2) /= 0;
+               This.State.DTE_Is_Present := (Req.Value and 1) /= 0;
+               This.State.Half_Duplex_Carrier_Control :=
+                 (Req.Value and 2) /= 0;
                return Handled;
             when Send_Break'Enum_Rep =>
                return Handled;
@@ -382,16 +272,16 @@ package body USB_Serial is
          return;
       end if;
 
-         BBqueue.Buffers.Read
-            (This.TX_Queue, RG, BBqueue.Count (Max_Packet_Size));
+      BBqueue.Buffers.Read
+        (This.TX_Queue, RG, BBqueue.Count (Max_Packet_Size));
       if BBqueue.Buffers.State (RG) = BBqueue.Valid then
          USB.Utils.Copy
            (Src   => BBqueue.Buffers.Slice (RG).Addr,
             Dst   => This.Bulk_In_Buf,
             Count => Natural (BBqueue.Buffers.Slice (RG).Length));
-             UDC.EP_Send_Packet
-                (Ep => This.Bulk_EP,
-                  Len => Packet_Size (BBqueue.Buffers.Slice (RG).Length));
+         UDC.EP_Send_Packet
+           (Ep  => This.Bulk_EP,
+            Len => Packet_Size (BBqueue.Buffers.Slice (RG).Length));
          BBqueue.Buffers.Release (This.TX_Queue, RG);
       else
          Atomic.Clear (This.TX_In_Progress);
@@ -468,8 +358,8 @@ package body USB_Serial is
    begin
       Length := 0;
 
-         BBqueue.Buffers.Read
-            (USB_Class.RX_Queue, RG, BBqueue.Count (Message'Length));
+      BBqueue.Buffers.Read
+        (USB_Class.RX_Queue, RG, BBqueue.Count (Message'Length));
       if BBqueue.Buffers.State (RG) = BBqueue.Valid then
          Length := HAL.UInt32 (BBqueue.Buffers.Slice (RG).Length);
          USB.Utils.Copy
@@ -488,18 +378,18 @@ package body USB_Serial is
          return;
       end if;
 
-         BBqueue.Buffers.Grant
-            (USB_Class.TX_Queue, WG, BBqueue.Count (Length));
+      BBqueue.Buffers.Grant
+        (USB_Class.TX_Queue, WG, BBqueue.Count (Length));
       if BBqueue.Buffers.State (WG) = BBqueue.Valid then
-             Length :=
-                HAL.UInt32'Min
-                   (Length, HAL.UInt32 (BBqueue.Buffers.Slice (WG).Length));
+         Length :=
+           HAL.UInt32'Min
+             (Length, HAL.UInt32 (BBqueue.Buffers.Slice (WG).Length));
          USB.Utils.Copy
            (Src   => Data'Address,
             Dst   => BBqueue.Buffers.Slice (WG).Addr,
             Count => Length);
-             BBqueue.Buffers.Commit
-                (USB_Class.TX_Queue, WG, BBqueue.Count (Length));
+         BBqueue.Buffers.Commit
+           (USB_Class.TX_Queue, WG, BBqueue.Count (Length));
          USB_Class.Setup_TX (RP.Device.UDC);
       end if;
    end Write;

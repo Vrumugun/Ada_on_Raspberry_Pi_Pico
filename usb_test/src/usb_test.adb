@@ -3,6 +3,8 @@ with RP.Clock;
 with RP.GPIO;
 with Pico;
 
+with Ada.Strings.Fixed;
+
 with HAL; use HAL;
 
 with USB_Serial;
@@ -12,8 +14,7 @@ procedure Usb_Test is
    Rx_Length      : HAL.UInt32;
    Tick_Count     : Natural := 0;
    Send_Period_Ms : constant Natural := 1_000;
-   Greeting       : constant String :=
-     "Custom USB CDC ready" & Character'Val (13) & Character'Val (10);
+   Greeting_Count : Natural := 1;
 begin
    RP.Clock.Initialize (Pico.XOSC_Frequency);
    RP.Device.Timer.Enable;
@@ -33,7 +34,17 @@ begin
             USB_Serial.Write (Rx_Message (1 .. Natural (Rx_Length)));
             Pico.LED.Toggle;
          elsif Tick_Count = 0 then
-            USB_Serial.Write (Greeting);
+            declare
+               Count_Text : constant String :=
+                 Ada.Strings.Fixed.Trim
+                   (Natural'Image (Greeting_Count), Ada.Strings.Left);
+               Greeting   : constant String :=
+                 "Custom USB CDC ready " & Count_Text &
+                 Character'Val (13) & Character'Val (10);
+            begin
+               USB_Serial.Write (Greeting);
+            end;
+            Greeting_Count := Greeting_Count + 1;
             Tick_Count := Send_Period_Ms;
          else
             Tick_Count := Tick_Count - 1;
