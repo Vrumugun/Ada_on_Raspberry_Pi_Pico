@@ -15,6 +15,10 @@ procedure Usb_Test is
    Tick_Count     : Natural := 0;
    Send_Period_Ms : constant Natural := 1_000;
    Greeting_Count : Natural := 1;
+   Startup_Message: constant String :=
+     "Ada USB Serial Test" & Character'Val (13) & Character'Val (10) &
+     "--------------------" & Character'Val (13) & Character'Val (10);
+   Startup_Message_Sent : Boolean := False;
 begin
    RP.Clock.Initialize (Pico.XOSC_Frequency);
    RP.Device.Timer.Enable;
@@ -28,6 +32,11 @@ begin
       USB_Serial.Poll;
 
       if USB_Serial.Connected then
+         if not Startup_Message_Sent then
+            USB_Serial.Write (Startup_Message);
+            Startup_Message_Sent := True;
+         end if;
+
          USB_Serial.Read (Rx_Message, Rx_Length);
 
          if Rx_Length > 0 then
