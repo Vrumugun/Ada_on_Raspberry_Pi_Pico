@@ -1,4 +1,3 @@
-with SAPL.Input;
 with SAPL.Processor;
 with Pico;
 with RP.GPIO;
@@ -29,7 +28,8 @@ package body SAPL.Output is
    procedure Set_Output_State (State : Boolean) is
    begin
       if State /= Output_State then
-         COM.Debug.Put_Tx_String (Output_State'Image & Character'Val (13) &
+         COM.Debug.Put_Tx_String ("Output: " & Output_State'Image & " -> " &
+            State'Image & Character'Val (13) &
             Character'Val (10));
       end if;
       Output_State := State;

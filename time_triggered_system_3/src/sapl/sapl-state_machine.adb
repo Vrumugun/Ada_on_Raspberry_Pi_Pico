@@ -58,7 +58,7 @@ package body SAPL.State_Machine is
          Exit_State (State);
          Enter_State (New_State);
 
-         COM.Debug.Put_Tx_String ("State " & State'Image & " -> " &
+         COM.Debug.Put_Tx_String ("" & State'Image & " -> " &
             New_State'Image & Character'Val (13) &
             Character'Val (10));
 
