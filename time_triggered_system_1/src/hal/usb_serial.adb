@@ -1,4 +1,5 @@
 with RP.Device;
+with RP.Flash;
 with USB.Utils;
 
 package body USB_Serial is
@@ -20,6 +21,27 @@ package body USB_Serial is
    USB_Stack  : USB.Device.USB_Device_Stack (Max_Classes => 1);
    USB_Class  : aliased Custom_Serial_Class;
    Initialized_Flag : Boolean := False;
+
+   function Hex_Digit (Value : HAL.UInt8) return Character is
+   begin
+      if Value < 10 then
+         return Character'Val (Character'Pos ('0') + Integer (Value));
+      else
+         return Character'Val (Character'Pos ('A') + Integer (Value) - 10);
+      end if;
+   end Hex_Digit;
+
+   function Unique_Serial_Number return String is
+      Id : HAL.UInt64 := RP.Flash.Unique_Id;
+      Result : String (1 .. 16);
+   begin
+      for I in reverse Result'Range loop
+         Result (I) := Hex_Digit (HAL.UInt8 (Id and 16#F#));
+         Id := Id / 16;
+      end loop;
+
+      return Result;
+   end Unique_Serial_Number;
 
    overriding
    function Initialize
@@ -319,6 +341,7 @@ package body USB_Serial is
    procedure Initialize is
       use type USB.Device.Init_Result;
       Status : USB.Device.Init_Result;
+      Serial_Number : constant String := Unique_Serial_Number;
    begin
       if Initialized_Flag then
          return;
@@ -332,7 +355,7 @@ package body USB_Serial is
         (Controller      => RP.Device.UDC'Access,
          Manufacturer    => USB.To_USB_String ("Raspberry Pi"),
          Product         => USB.To_USB_String ("Custom Ada Serial"),
-         Serial_Number   => USB.To_USB_String ("usb_test2"),
+             Serial_Number   => USB.To_USB_String (Serial_Number),
          Max_Packet_Size => Control_Packet_Size (Max_Packet_Size),
          Vendor_Id       => 16#2E8A#,
          Product_Id      => 16#000A#,
