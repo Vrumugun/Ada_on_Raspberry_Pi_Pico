@@ -1,0 +1,20 @@
+{
+     "version": "0.2.0",
+     "configurations": [
+         {   
+            "name": "Pico Debug",
+             "device": "RP2040",
+             "gdbPath": "arm-none-eabi-gdb",
+             "cwd": "${workspaceRoot}",
+             "executable": "${workspaceRoot}/bin/hello_pico",
+             "request": "launch",
+             "type": "cortex-debug",
+             "servertype": "openocd",
+             "runToEntryPoint": "_ada_hello_pico",
+            "configFiles": [
+                ".vscode/pico-debug-local.cfg"
+             ],
+             "svdFile": "C:/GitHub/pico-sdk/src/rp2040/hardware_regs/rp2040.svd",
+         }
+     ]
+}

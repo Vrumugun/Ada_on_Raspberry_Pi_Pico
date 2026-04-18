@@ -2,7 +2,6 @@ with RP.Device;
 with RP.Clock;
 with RP.GPIO;
 with Pico;
-with Ada.Text_IO;
 
 procedure Hello_Pico is
 begin
