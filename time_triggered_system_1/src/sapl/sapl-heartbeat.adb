@@ -13,12 +13,14 @@ package body SAPL.Heartbeat is
    procedure Initialize is
    begin
       Pico.LED.Configure (RP.GPIO.Output);
+      Pico.GP18.Configure (RP.GPIO.Output);
    end Initialize;
 
    procedure Update is
    begin
       if SAPL.Verify_Duplicate_Variable (Counter, Counter_Duplicate) then
          Pico.LED.Toggle;
+         Pico.GP18.Toggle;
          Counter := Counter + 1;
          Counter_Duplicate := Counter xor (2 ** 32 - 1);
          if Counter mod 10 = 0 then
