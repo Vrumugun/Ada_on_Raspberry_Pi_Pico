@@ -17,15 +17,14 @@ package body SAPL.Processor is
       RP.Device.Timer.Enable;
       RP.GPIO.Enable;
       Read_Cpu_Id;
-      --  LED_TX.Configure_Output;
-      --  LED_TX.Set (True);
    end Initialize;
 
    procedure Fail_Safe (Error_Code : Fail_Safe_Error_Codes) is
       Time : HAL.UInt32;
    begin
       Disable_Interrupts;
-      --  LED_TX.Set (False);
+      Pico.LED.Set;
+      Pico.GP18.Set;
       Time := COM.Debug.Get_Update_Time_Us;
       COM.Debug.Put_Tx_String ("Fail Safe! " & Error_Code'Image &
          " Time: " & Time'Image &

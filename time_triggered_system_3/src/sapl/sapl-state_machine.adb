@@ -9,6 +9,11 @@ package body SAPL.State_Machine is
    use type SAPL.Processor.Cpu_Id;
 
    Rx_Count : Natural := 0;
+   Rx_Cross_Comm_Timer : Natural := 0;
+   Rx_Cross_Comm_Timeout : constant Natural := 100;
+
+   Input_Cross_Compare_Timer : Natural := 0;
+   Input_Cross_Compare_Timeout : constant Natural := 100;
 
    Start_Header : constant Character := Character'Val (16#A5#);
 
@@ -39,30 +44,37 @@ package body SAPL.State_Machine is
             end if;
          when State_Output_Off =>
             SAPL.Output.Set_Output_State (False);
+            Check_Cross_Comm_Timeout;
+            Cross_Compare_Inputs;
             if Peer_Input_State and then SAPL.Input.Get_Input_State then
                Set_State (State_Output_On);
             end if;
          when State_Output_On =>
             SAPL.Output.Set_Output_State (True);
+            Check_Cross_Comm_Timeout;
+            Cross_Compare_Inputs;
             if not Peer_Input_State or else not SAPL.Input.Get_Input_State then
                Set_State (State_Output_Off);
             end if;
          when State_Error =>
             null; --  Implement error handling logic here
+            SAPL.Output.Set_Output_State (False);
       end case;
    end Cycle;
 
    procedure Set_State (New_State : State_Type) is
    begin
       if New_State /= State then
-         Exit_State (State);
-         Enter_State (New_State);
+         if Check_Valid_State_Transition (State, New_State) then
+            Exit_State (State);
+            Enter_State (New_State);
 
-         COM.Debug.Put_Tx_String ("" & State'Image & " -> " &
-            New_State'Image & Character'Val (13) &
-            Character'Val (10));
+            COM.Debug.Put_Tx_String ("" & State'Image & " -> " &
+               New_State'Image & Character'Val (13) &
+               Character'Val (10));
 
-         State := New_State;
+            State := New_State;
+         end if;
       end if;
    end Set_State;
 
@@ -82,6 +94,16 @@ package body SAPL.State_Machine is
    begin
       return State;
    end Get_State;
+
+   function Check_Valid_State_Transition
+      (Current_State, New_State : State_Type) return Boolean is
+   begin
+      if Current_State = State_Error then
+         return False;
+      else
+         return True;
+      end if;
+   end Check_Valid_State_Transition;
 
    procedure Update_Cross_Comm is
       Tx_Message : String (1 .. 4);
@@ -123,6 +145,19 @@ package body SAPL.State_Machine is
       end loop;
    end Update_Cross_Comm;
 
+   procedure Check_Cross_Comm_Timeout is
+   begin
+      if Rx_Cross_Comm_Timer >= Rx_Cross_Comm_Timeout then
+         --  Handle cross-communication timeout here
+         Peer_Cpu_Id := SAPL.Processor.Cpu_Unknown;
+         Peer_Input_State := False;
+         Rx_Cross_Comm_Timer := 0; --  Reset the timer after handling timeout
+         Set_State (State_Error);
+      else
+         Rx_Cross_Comm_Timer := Rx_Cross_Comm_Timer + 1;
+      end if;
+   end Check_Cross_Comm_Timeout;
+
    procedure Process_Rx_Cross_Comm_Message (Message : String) is
    begin
       if Message'Length /= 4 then
@@ -157,8 +192,25 @@ package body SAPL.State_Machine is
             else
                Peer_Input_State := False;
             end if;
+
+            --  Reset the timer on successful message reception
+            Rx_Cross_Comm_Timer := 0;
          end;
       end if;
    end Process_Rx_Cross_Comm_Message;
+
+   procedure Cross_Compare_Inputs is
+   begin
+      if Peer_Input_State /= SAPL.Input.Get_Input_State then
+         Input_Cross_Compare_Timer := Input_Cross_Compare_Timer + 1;
+         if Input_Cross_Compare_Timer >= Input_Cross_Compare_Timeout then
+            --  Handle input mismatch timeout here
+            Set_State (State_Error);
+         end if;
+      else
+         --  Reset the timer on successful comparison
+         Input_Cross_Compare_Timer := 0;
+      end if;
+   end Cross_Compare_Inputs;
 
 end SAPL.State_Machine;
